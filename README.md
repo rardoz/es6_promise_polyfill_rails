@@ -1,4 +1,4 @@
-# Es6PromisePolyfillRails - es6_promise_polyfill_rails.js exposes a simple API for cross browser local storage
+# Es6PromisePolyfillRails - Es6 Promise Polyfill Rails Javascript packaged for the Rails asset pipeline
 
 An es6 promise polyfill js gem packaged for the rails asset pipeline. The js was created by the awesome developer, [Taylor Hakes](https://github.com/taylorhakes). You can take a look at the original repo hosted here [https://github.com/taylorhakes/promise-polyfill](https://github.com/taylorhakes/promise-polyfill).
 
