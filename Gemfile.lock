@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    es6_promise_polyfill_rails (0.1.0)
+    es6_promise_polyfill_rails (0.1.1)
 
 GEM
   remote: https://rubygems.org/
@@ -14,9 +14,9 @@ PLATFORMS
 
 DEPENDENCIES
   bundler (~> 1.11)
+  es6_promise_polyfill_rails!
   minitest (~> 5.0)
   rake (~> 10.0)
-  es6_promise_polyfill_rails!
 
 BUNDLED WITH
    1.11.2
