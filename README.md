@@ -1,6 +1,6 @@
 # Es6PromisePolyfillRails - Es6 Promise Polyfill Rails Javascript packaged for the Rails asset pipeline
 
-An es6 promise polyfill js gem packaged for the rails asset pipeline. The js was created by the awesome developer, [Taylor Hakes](https://github.com/taylorhakes). You can take a look at the original repo hosted here [https://github.com/taylorhakes/promise-polyfill](https://github.com/taylorhakes/promise-polyfill).
+An es6 promise polyfill js gem packaged for the rails asset pipeline. The js was created by the awesome developer, [Stefan Penner](https://github.com/stefanpenner). You can take a look at the original repo hosted here [https://github.com/taylorhakes/promise-polyfill](https://github.com/stefanpenner/es6-promise).
 
 ## Installation
 
@@ -24,7 +24,7 @@ Add it to your Javascript manifest file
 
 ## Usage
 
-Check out this repo [https://github.com/taylorhakes/promise-polyfill](https://github.com/taylorhakes/promise-polyfill).
+Check out this repo [https://github.com/stefanpenner/es6-promise](https://github.com/stefanpenner/es6-promise).
 
 ## Development
 
