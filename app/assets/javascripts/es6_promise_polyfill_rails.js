@@ -1,4 +1,12 @@
 if(typeof Promise != 'function'){
+  /*!
+ * @overview es6-promise - a tiny implementation of Promises/A+.
+ * @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
+ * @license   Licensed under MIT license
+ *            See https://raw.githubusercontent.com/jakearchibald/es6-promise/master/LICENSE
+ * @version   3.2.1
+ */
+
   (function() {
       "use strict";
       function lib$es6$promise$utils$$objectOrFunction(x) {
@@ -24,7 +32,6 @@ if(typeof Promise != 'function'){
 
       var lib$es6$promise$utils$$isArray = lib$es6$promise$utils$$_isArray;
       var lib$es6$promise$asap$$len = 0;
-      var lib$es6$promise$asap$$toString = {}.toString;
       var lib$es6$promise$asap$$vertxNext;
       var lib$es6$promise$asap$$customSchedulerFn;
 
@@ -55,7 +62,7 @@ if(typeof Promise != 'function'){
       var lib$es6$promise$asap$$browserWindow = (typeof window !== 'undefined') ? window : undefined;
       var lib$es6$promise$asap$$browserGlobal = lib$es6$promise$asap$$browserWindow || {};
       var lib$es6$promise$asap$$BrowserMutationObserver = lib$es6$promise$asap$$browserGlobal.MutationObserver || lib$es6$promise$asap$$browserGlobal.WebKitMutationObserver;
-      var lib$es6$promise$asap$$isNode = typeof process !== 'undefined' && {}.toString.call(process) === '[object process]';
+      var lib$es6$promise$asap$$isNode = typeof self === 'undefined' && typeof process !== 'undefined' && {}.toString.call(process) === '[object process]';
 
       // test for web worker but not in IE10
       var lib$es6$promise$asap$$isWorker = typeof Uint8ClampedArray !== 'undefined' &&
@@ -143,6 +150,43 @@ if(typeof Promise != 'function'){
       } else {
         lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useSetTimeout();
       }
+      function lib$es6$promise$then$$then(onFulfillment, onRejection) {
+        var parent = this;
+
+        var child = new this.constructor(lib$es6$promise$$internal$$noop);
+
+        if (child[lib$es6$promise$$internal$$PROMISE_ID] === undefined) {
+          lib$es6$promise$$internal$$makePromise(child);
+        }
+
+        var state = parent._state;
+
+        if (state) {
+          var callback = arguments[state - 1];
+          lib$es6$promise$asap$$asap(function(){
+            lib$es6$promise$$internal$$invokeCallback(state, child, callback, parent._result);
+          });
+        } else {
+          lib$es6$promise$$internal$$subscribe(parent, child, onFulfillment, onRejection);
+        }
+
+        return child;
+      }
+      var lib$es6$promise$then$$default = lib$es6$promise$then$$then;
+      function lib$es6$promise$promise$resolve$$resolve(object) {
+        /*jshint validthis:true */
+        var Constructor = this;
+
+        if (object && typeof object === 'object' && object.constructor === Constructor) {
+          return object;
+        }
+
+        var promise = new Constructor(lib$es6$promise$$internal$$noop);
+        lib$es6$promise$$internal$$resolve(promise, object);
+        return promise;
+      }
+      var lib$es6$promise$promise$resolve$$default = lib$es6$promise$promise$resolve$$resolve;
+      var lib$es6$promise$$internal$$PROMISE_ID = Math.random().toString(36).substring(16);
 
       function lib$es6$promise$$internal$$noop() {}
 
@@ -216,12 +260,12 @@ if(typeof Promise != 'function'){
         }
       }
 
-      function lib$es6$promise$$internal$$handleMaybeThenable(promise, maybeThenable) {
-        if (maybeThenable.constructor === promise.constructor) {
+      function lib$es6$promise$$internal$$handleMaybeThenable(promise, maybeThenable, then) {
+        if (maybeThenable.constructor === promise.constructor &&
+            then === lib$es6$promise$then$$default &&
+            constructor.resolve === lib$es6$promise$promise$resolve$$default) {
           lib$es6$promise$$internal$$handleOwnThenable(promise, maybeThenable);
         } else {
-          var then = lib$es6$promise$$internal$$getThen(maybeThenable);
-
           if (then === lib$es6$promise$$internal$$GET_THEN_ERROR) {
             lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$GET_THEN_ERROR.error);
           } else if (then === undefined) {
@@ -238,7 +282,7 @@ if(typeof Promise != 'function'){
         if (promise === value) {
           lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$selfFulfillment());
         } else if (lib$es6$promise$utils$$objectOrFunction(value)) {
-          lib$es6$promise$$internal$$handleMaybeThenable(promise, value);
+          lib$es6$promise$$internal$$handleMaybeThenable(promise, value, lib$es6$promise$$internal$$getThen(value));
         } else {
           lib$es6$promise$$internal$$fulfill(promise, value);
         }
@@ -373,104 +417,18 @@ if(typeof Promise != 'function'){
         }
       }
 
-      function lib$es6$promise$enumerator$$Enumerator(Constructor, input) {
-        var enumerator = this;
-
-        enumerator._instanceConstructor = Constructor;
-        enumerator.promise = new Constructor(lib$es6$promise$$internal$$noop);
-
-        if (enumerator._validateInput(input)) {
-          enumerator._input     = input;
-          enumerator.length     = input.length;
-          enumerator._remaining = input.length;
-
-          enumerator._init();
-
-          if (enumerator.length === 0) {
-            lib$es6$promise$$internal$$fulfill(enumerator.promise, enumerator._result);
-          } else {
-            enumerator.length = enumerator.length || 0;
-            enumerator._enumerate();
-            if (enumerator._remaining === 0) {
-              lib$es6$promise$$internal$$fulfill(enumerator.promise, enumerator._result);
-            }
-          }
-        } else {
-          lib$es6$promise$$internal$$reject(enumerator.promise, enumerator._validationError());
-        }
+      var lib$es6$promise$$internal$$id = 0;
+      function lib$es6$promise$$internal$$nextId() {
+        return lib$es6$promise$$internal$$id++;
       }
 
-      lib$es6$promise$enumerator$$Enumerator.prototype._validateInput = function(input) {
-        return lib$es6$promise$utils$$isArray(input);
-      };
+      function lib$es6$promise$$internal$$makePromise(promise) {
+        promise[lib$es6$promise$$internal$$PROMISE_ID] = lib$es6$promise$$internal$$id++;
+        promise._state = undefined;
+        promise._result = undefined;
+        promise._subscribers = [];
+      }
 
-      lib$es6$promise$enumerator$$Enumerator.prototype._validationError = function() {
-        return new Error('Array Methods must be provided an Array');
-      };
-
-      lib$es6$promise$enumerator$$Enumerator.prototype._init = function() {
-        this._result = new Array(this.length);
-      };
-
-      var lib$es6$promise$enumerator$$default = lib$es6$promise$enumerator$$Enumerator;
-
-      lib$es6$promise$enumerator$$Enumerator.prototype._enumerate = function() {
-        var enumerator = this;
-
-        var length  = enumerator.length;
-        var promise = enumerator.promise;
-        var input   = enumerator._input;
-
-        for (var i = 0; promise._state === lib$es6$promise$$internal$$PENDING && i < length; i++) {
-          enumerator._eachEntry(input[i], i);
-        }
-      };
-
-      lib$es6$promise$enumerator$$Enumerator.prototype._eachEntry = function(entry, i) {
-        var enumerator = this;
-        var c = enumerator._instanceConstructor;
-
-        if (lib$es6$promise$utils$$isMaybeThenable(entry)) {
-          if (entry.constructor === c && entry._state !== lib$es6$promise$$internal$$PENDING) {
-            entry._onerror = null;
-            enumerator._settledAt(entry._state, i, entry._result);
-          } else {
-            enumerator._willSettleAt(c.resolve(entry), i);
-          }
-        } else {
-          enumerator._remaining--;
-          enumerator._result[i] = entry;
-        }
-      };
-
-      lib$es6$promise$enumerator$$Enumerator.prototype._settledAt = function(state, i, value) {
-        var enumerator = this;
-        var promise = enumerator.promise;
-
-        if (promise._state === lib$es6$promise$$internal$$PENDING) {
-          enumerator._remaining--;
-
-          if (state === lib$es6$promise$$internal$$REJECTED) {
-            lib$es6$promise$$internal$$reject(promise, value);
-          } else {
-            enumerator._result[i] = value;
-          }
-        }
-
-        if (enumerator._remaining === 0) {
-          lib$es6$promise$$internal$$fulfill(promise, enumerator._result);
-        }
-      };
-
-      lib$es6$promise$enumerator$$Enumerator.prototype._willSettleAt = function(promise, i) {
-        var enumerator = this;
-
-        lib$es6$promise$$internal$$subscribe(promise, undefined, function(value) {
-          enumerator._settledAt(lib$es6$promise$$internal$$FULFILLED, i, value);
-        }, function(reason) {
-          enumerator._settledAt(lib$es6$promise$$internal$$REJECTED, i, reason);
-        });
-      };
       function lib$es6$promise$promise$all$$all(entries) {
         return new lib$es6$promise$enumerator$$default(this, entries).promise;
       }
@@ -479,43 +437,20 @@ if(typeof Promise != 'function'){
         /*jshint validthis:true */
         var Constructor = this;
 
-        var promise = new Constructor(lib$es6$promise$$internal$$noop);
-
         if (!lib$es6$promise$utils$$isArray(entries)) {
-          lib$es6$promise$$internal$$reject(promise, new TypeError('You must pass an array to race.'));
-          return promise;
+          return new Constructor(function(resolve, reject) {
+            reject(new TypeError('You must pass an array to race.'));
+          });
+        } else {
+          return new Constructor(function(resolve, reject) {
+            var length = entries.length;
+            for (var i = 0; i < length; i++) {
+              Constructor.resolve(entries[i]).then(resolve, reject);
+            }
+          });
         }
-
-        var length = entries.length;
-
-        function onFulfillment(value) {
-          lib$es6$promise$$internal$$resolve(promise, value);
-        }
-
-        function onRejection(reason) {
-          lib$es6$promise$$internal$$reject(promise, reason);
-        }
-
-        for (var i = 0; promise._state === lib$es6$promise$$internal$$PENDING && i < length; i++) {
-          lib$es6$promise$$internal$$subscribe(Constructor.resolve(entries[i]), undefined, onFulfillment, onRejection);
-        }
-
-        return promise;
       }
       var lib$es6$promise$promise$race$$default = lib$es6$promise$promise$race$$race;
-      function lib$es6$promise$promise$resolve$$resolve(object) {
-        /*jshint validthis:true */
-        var Constructor = this;
-
-        if (object && typeof object === 'object' && object.constructor === Constructor) {
-          return object;
-        }
-
-        var promise = new Constructor(lib$es6$promise$$internal$$noop);
-        lib$es6$promise$$internal$$resolve(promise, object);
-        return promise;
-      }
-      var lib$es6$promise$promise$resolve$$default = lib$es6$promise$promise$resolve$$resolve;
       function lib$es6$promise$promise$reject$$reject(reason) {
         /*jshint validthis:true */
         var Constructor = this;
@@ -525,7 +460,6 @@ if(typeof Promise != 'function'){
       }
       var lib$es6$promise$promise$reject$$default = lib$es6$promise$promise$reject$$reject;
 
-      var lib$es6$promise$promise$$counter = 0;
 
       function lib$es6$promise$promise$$needsResolver() {
         throw new TypeError('You must pass a resolver function as the first argument to the promise constructor');
@@ -541,51 +475,66 @@ if(typeof Promise != 'function'){
         primary way of interacting with a promise is through its `then` method, which
         registers callbacks to receive either a promise's eventual value or the reason
         why the promise cannot be fulfilled.
+
         Terminology
         -----------
+
         - `promise` is an object or function with a `then` method whose behavior conforms to this specification.
         - `thenable` is an object or function that defines a `then` method.
         - `value` is any legal JavaScript value (including undefined, a thenable, or a promise).
         - `exception` is a value that is thrown using the throw statement.
         - `reason` is a value that indicates why a promise was rejected.
         - `settled` the final resting state of a promise, fulfilled or rejected.
+
         A promise can be in one of three states: pending, fulfilled, or rejected.
+
         Promises that are fulfilled have a fulfillment value and are in the fulfilled
         state.  Promises that are rejected have a rejection reason and are in the
         rejected state.  A fulfillment value is never a thenable.
+
         Promises can also be said to *resolve* a value.  If this value is also a
         promise, then the original promise's settled state will match the value's
         settled state.  So a promise that *resolves* a promise that rejects will
         itself reject, and a promise that *resolves* a promise that fulfills will
         itself fulfill.
+
+
         Basic Usage:
         ------------
+
         ```js
         var promise = new Promise(function(resolve, reject) {
           // on success
           resolve(value);
+
           // on failure
           reject(reason);
         });
+
         promise.then(function(value) {
           // on fulfillment
         }, function(reason) {
           // on rejection
         });
         ```
+
         Advanced Usage:
         ---------------
+
         Promises shine when abstracting away asynchronous interactions such as
         `XMLHttpRequest`s.
+
         ```js
         function getJSON(url) {
           return new Promise(function(resolve, reject){
             var xhr = new XMLHttpRequest();
+
             xhr.open('GET', url);
             xhr.onreadystatechange = handler;
             xhr.responseType = 'json';
             xhr.setRequestHeader('Accept', 'application/json');
             xhr.send();
+
             function handler() {
               if (this.readyState === this.DONE) {
                 if (this.status === 200) {
@@ -597,13 +546,16 @@ if(typeof Promise != 'function'){
             };
           });
         }
+
         getJSON('/posts.json').then(function(json) {
           // on fulfillment
         }, function(reason) {
           // on rejection
         });
         ```
+
         Unlike callbacks, promises are great composable primitives.
+
         ```js
         Promise.all([
           getJSON('/posts'),
@@ -611,30 +563,24 @@ if(typeof Promise != 'function'){
         ]).then(function(values){
           values[0] // => postsJSON
           values[1] // => commentsJSON
+
           return values;
         });
         ```
+
         @class Promise
         @param {function} resolver
         Useful for tooling.
         @constructor
       */
       function lib$es6$promise$promise$$Promise(resolver) {
-        this._id = lib$es6$promise$promise$$counter++;
-        this._state = undefined;
-        this._result = undefined;
+        this[lib$es6$promise$$internal$$PROMISE_ID] = lib$es6$promise$$internal$$nextId();
+        this._result = this._state = undefined;
         this._subscribers = [];
 
         if (lib$es6$promise$$internal$$noop !== resolver) {
-          if (!lib$es6$promise$utils$$isFunction(resolver)) {
-            lib$es6$promise$promise$$needsResolver();
-          }
-
-          if (!(this instanceof lib$es6$promise$promise$$Promise)) {
-            lib$es6$promise$promise$$needsNew();
-          }
-
-          lib$es6$promise$$internal$$initializePromise(this, resolver);
+          typeof resolver !== 'function' && lib$es6$promise$promise$$needsResolver();
+          this instanceof lib$es6$promise$promise$$Promise ? lib$es6$promise$$internal$$initializePromise(this, resolver) : lib$es6$promise$promise$$needsNew();
         }
       }
 
@@ -653,6 +599,7 @@ if(typeof Promise != 'function'){
         The primary way of interacting with a promise is through its `then` method,
         which registers callbacks to receive either a promise's eventual value or the
         reason why the promise cannot be fulfilled.
+
         ```js
         findUser().then(function(user){
           // user is available
@@ -660,11 +607,14 @@ if(typeof Promise != 'function'){
           // user is unavailable, and you are given the reason why
         });
         ```
+
         Chaining
         --------
+
         The return value of `then` is itself a promise.  This second, 'downstream'
         promise is resolved with the return value of the first promise's fulfillment
         or rejection handler, or rejected if the handler throws an exception.
+
         ```js
         findUser().then(function (user) {
           return user.name;
@@ -674,6 +624,7 @@ if(typeof Promise != 'function'){
           // If `findUser` fulfilled, `userName` will be the user's name, otherwise it
           // will be `'default name'`
         });
+
         findUser().then(function (user) {
           throw new Error('Found user, but still unhappy');
         }, function (reason) {
@@ -686,6 +637,7 @@ if(typeof Promise != 'function'){
         });
         ```
         If the downstream promise does not specify a rejection handler, rejection reasons will be propagated further downstream.
+
         ```js
         findUser().then(function (user) {
           throw new PedagogicalException('Upstream error');
@@ -697,12 +649,15 @@ if(typeof Promise != 'function'){
           // The `PedgagocialException` is propagated all the way down to here
         });
         ```
+
         Assimilation
         ------------
+
         Sometimes the value you want to propagate to a downstream promise can only be
         retrieved asynchronously. This can be achieved by returning a promise in the
         fulfillment or rejection handler. The downstream promise will then be pending
         until the returned promise is settled. This is called *assimilation*.
+
         ```js
         findUser().then(function (user) {
           return findCommentsByAuthor(user);
@@ -710,7 +665,9 @@ if(typeof Promise != 'function'){
           // The user's comments are now available
         });
         ```
+
         If the assimliated promise rejects, then the downstream promise will also reject.
+
         ```js
         findUser().then(function (user) {
           return findCommentsByAuthor(user);
@@ -720,11 +677,15 @@ if(typeof Promise != 'function'){
           // If `findCommentsByAuthor` rejects, we'll have the reason here
         });
         ```
+
         Simple Example
         --------------
+
         Synchronous Example
+
         ```javascript
         var result;
+
         try {
           result = findResult();
           // success
@@ -732,7 +693,9 @@ if(typeof Promise != 'function'){
           // failure
         }
         ```
+
         Errback Example
+
         ```js
         findResult(function(result, err){
           if (err) {
@@ -742,7 +705,9 @@ if(typeof Promise != 'function'){
           }
         });
         ```
+
         Promise Example;
+
         ```javascript
         findResult().then(function(result){
           // success
@@ -750,11 +715,15 @@ if(typeof Promise != 'function'){
           // failure
         });
         ```
+
         Advanced Example
         --------------
+
         Synchronous Example
+
         ```javascript
         var author, books;
+
         try {
           author = findAuthor();
           books  = findBooksByAuthor(author);
@@ -763,12 +732,19 @@ if(typeof Promise != 'function'){
           // failure
         }
         ```
+
         Errback Example
+
         ```js
+
         function foundBooks(books) {
+
         }
+
         function failure(reason) {
+
         }
+
         findAuthor(function(author, err){
           if (err) {
             failure(err);
@@ -793,7 +769,9 @@ if(typeof Promise != 'function'){
           }
         });
         ```
+
         Promise Example;
+
         ```javascript
         findAuthor().
           then(findBooksByAuthor).
@@ -803,53 +781,37 @@ if(typeof Promise != 'function'){
           // something went wrong
         });
         ```
+
         @method then
         @param {Function} onFulfilled
         @param {Function} onRejected
         Useful for tooling.
         @return {Promise}
       */
-        then: function(onFulfillment, onRejection) {
-          var parent = this;
-          var state = parent._state;
-
-          if (state === lib$es6$promise$$internal$$FULFILLED && !onFulfillment || state === lib$es6$promise$$internal$$REJECTED && !onRejection) {
-            return this;
-          }
-
-          var child = new this.constructor(lib$es6$promise$$internal$$noop);
-          var result = parent._result;
-
-          if (state) {
-            var callback = arguments[state - 1];
-            lib$es6$promise$asap$$asap(function(){
-              lib$es6$promise$$internal$$invokeCallback(state, child, callback, result);
-            });
-          } else {
-            lib$es6$promise$$internal$$subscribe(parent, child, onFulfillment, onRejection);
-          }
-
-          return child;
-        },
+        then: lib$es6$promise$then$$default,
 
       /**
         `catch` is simply sugar for `then(undefined, onRejection)` which makes it the same
         as the catch block of a try/catch statement.
+
         ```js
         function findAuthor(){
           throw new Error('couldn't find that author');
         }
+
         // synchronous
         try {
           findAuthor();
         } catch(reason) {
           // something went wrong
         }
+
         // async with promises
         findAuthor().catch(function(reason){
           // something went wrong
         });
         ```
+
         @method catch
         @param {Function} onRejection
         Useful for tooling.
@@ -858,6 +820,101 @@ if(typeof Promise != 'function'){
         'catch': function(onRejection) {
           return this.then(null, onRejection);
         }
+      };
+      var lib$es6$promise$enumerator$$default = lib$es6$promise$enumerator$$Enumerator;
+      function lib$es6$promise$enumerator$$Enumerator(Constructor, input) {
+        this._instanceConstructor = Constructor;
+        this.promise = new Constructor(lib$es6$promise$$internal$$noop);
+
+        if (!this.promise[lib$es6$promise$$internal$$PROMISE_ID]) {
+          lib$es6$promise$$internal$$makePromise(this.promise);
+        }
+
+        if (Array.isArray(input)) {
+          this._input     = input;
+          this.length     = input.length;
+          this._remaining = input.length;
+
+          this._result = new Array(this.length);
+
+          if (this.length === 0) {
+            lib$es6$promise$$internal$$fulfill(this.promise, this._result);
+          } else {
+            this.length = this.length || 0;
+            this._enumerate();
+            if (this._remaining === 0) {
+              lib$es6$promise$$internal$$fulfill(this.promise, this._result);
+            }
+          }
+        } else {
+          lib$es6$promise$$internal$$reject(this.promise, lib$es6$promise$enumerator$$validationError());
+        }
+      }
+
+      function lib$es6$promise$enumerator$$validationError() {
+        return new Error('Array Methods must be provided an Array');
+      }
+
+      lib$es6$promise$enumerator$$Enumerator.prototype._enumerate = function() {
+        var length  = this.length;
+        var input   = this._input;
+
+        for (var i = 0; this._state === lib$es6$promise$$internal$$PENDING && i < length; i++) {
+          this._eachEntry(input[i], i);
+        }
+      };
+
+      lib$es6$promise$enumerator$$Enumerator.prototype._eachEntry = function(entry, i) {
+        var c = this._instanceConstructor;
+        var resolve = c.resolve;
+
+        if (resolve === lib$es6$promise$promise$resolve$$default) {
+          var then = lib$es6$promise$$internal$$getThen(entry);
+
+          if (then === lib$es6$promise$then$$default &&
+              entry._state !== lib$es6$promise$$internal$$PENDING) {
+            this._settledAt(entry._state, i, entry._result);
+          } else if (typeof then !== 'function') {
+            this._remaining--;
+            this._result[i] = entry;
+          } else if (c === lib$es6$promise$promise$$default) {
+            var promise = new c(lib$es6$promise$$internal$$noop);
+            lib$es6$promise$$internal$$handleMaybeThenable(promise, entry, then);
+            this._willSettleAt(promise, i);
+          } else {
+            this._willSettleAt(new c(function(resolve) { resolve(entry); }), i);
+          }
+        } else {
+          this._willSettleAt(resolve(entry), i);
+        }
+      };
+
+      lib$es6$promise$enumerator$$Enumerator.prototype._settledAt = function(state, i, value) {
+        var promise = this.promise;
+
+        if (promise._state === lib$es6$promise$$internal$$PENDING) {
+          this._remaining--;
+
+          if (state === lib$es6$promise$$internal$$REJECTED) {
+            lib$es6$promise$$internal$$reject(promise, value);
+          } else {
+            this._result[i] = value;
+          }
+        }
+
+        if (this._remaining === 0) {
+          lib$es6$promise$$internal$$fulfill(promise, this._result);
+        }
+      };
+
+      lib$es6$promise$enumerator$$Enumerator.prototype._willSettleAt = function(promise, i) {
+        var enumerator = this;
+
+        lib$es6$promise$$internal$$subscribe(promise, undefined, function(value) {
+          enumerator._settledAt(lib$es6$promise$$internal$$FULFILLED, i, value);
+        }, function(reason) {
+          enumerator._settledAt(lib$es6$promise$$internal$$REJECTED, i, reason);
+        });
       };
       function lib$es6$promise$polyfill$$polyfill() {
         var local;
